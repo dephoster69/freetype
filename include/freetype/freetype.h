@@ -154,6 +154,7 @@ FT_BEGIN_HEADER
    *   FT_FACE_FLAG_EXTERNAL_STREAM
    *   FT_FACE_FLAG_HINTER
    *   FT_FACE_FLAG_SVG
+   *   FT_FACE_FLAG_SBIX
    *
    *   FT_HAS_HORIZONTAL
    *   FT_HAS_VERTICAL
@@ -163,6 +164,7 @@ FT_BEGIN_HEADER
    *   FT_HAS_COLOR
    *   FT_HAS_MULTIPLE_MASTERS
    *   FT_HAS_SVG
+   *   FT_HAS_SBIX
    *
    *   FT_IS_SFNT
    *   FT_IS_SCALABLE
@@ -1236,6 +1238,9 @@ FT_BEGIN_HEADER
    *
    *   FT_FACE_FLAG_SVG ::
    *     [Since 2.12] The face has an 'SVG~' OpenType table.
+   *
+   *   FT_FACE_FLAG_SBIX ::
+   *     [Since 2.12] The face has an 'sbix' OpenType table.
    */
 #define FT_FACE_FLAG_SCALABLE          ( 1L <<  0 )
 #define FT_FACE_FLAG_FIXED_SIZES       ( 1L <<  1 )
@@ -1254,6 +1259,7 @@ FT_BEGIN_HEADER
 #define FT_FACE_FLAG_COLOR             ( 1L << 14 )
 #define FT_FACE_FLAG_VARIATION         ( 1L << 15 )
 #define FT_FACE_FLAG_SVG               ( 1L << 16 )
+#define FT_FACE_FLAG_SBIX              ( 1L << 17 )
 
 
   /**************************************************************************
@@ -1508,6 +1514,68 @@ FT_BEGIN_HEADER
    */
 #define FT_HAS_SVG( face ) \
           ( !!( (face)->face_flags & FT_FACE_FLAG_SVG ) )
+
+
+  /**************************************************************************
+   *
+   * @macro:
+   *   FT_HAS_SBIX
+   *
+   * @description:
+   *   A macro that returns true whenever a face object contains an 'sbix'
+   *   OpenType table.
+   *
+   * @note:
+   *   Here is some pseudo code that roughly illustrates how to implement
+   *   'sbix' handling according to the OpenType specification.
+   *
+   * ```
+   *   if ( FT_HAS_SBIX( face ) )
+   *   {
+   *     <sort `face->available_size` as necessary into
+   *      `preferred_sizes`[*]>
+   *
+   *     for ( i = 0; i < face->num_fixed_sizes; i++ )
+   *     {
+   *       size = preferred_sizes[i].size;
+   *
+   *       error = FT_Set_Pixel_Sizes( face, size, size );
+   *       <error handling omitted>
+   *
+   *       // check whether we have a glyph in a bitmap strike
+   *       error = FT_Load_Glyph( face,
+   *                              glyph_index,
+   *                              FT_LOAD_SBITS_ONLY          |
+   *                              FT_LOAD_BITMAP_METRICS_ONLY )
+   *       if ( error == FT_Err_Invalid_Argument )
+   *         continue;
+   *       else if ( error )
+   *         <other error handling omitted>
+   *       else
+   *         break;
+   *     }
+   *
+   *     if ( i == face->num_fixed_sizes )
+   *       <no embedded bitmap found, load outline glyph with
+   *        `FT_Load_Glyph`>
+   *     else
+   *       <load embedded bitmap with `FT_Load_Glyph`,
+   *        scale it, display it, etc.>
+   *   }
+   * ```
+   *
+   * [*] Assuming a target value of 400dpi and available strike sizes 100,
+   * 200, 300, and 400dpi, a possible order might be [400, 200, 300, 100]:
+   * scaling 200dpi to 400dpi usually gives better results than scaling
+   * 300dpi to 400dpi; it is also much faster.  However, scaling 100dpi to
+   * 400dpi can yield a too pixelated result, thus the preference might be
+   * 300dpi over 100dpi.
+   *
+   * @since:
+   *   2.12
+   */
+#define FT_HAS_SBIX( face ) \
+          ( !!( (face)->face_flags & FT_FACE_FLAG_SBIX ) )
 
 
   /**************************************************************************
